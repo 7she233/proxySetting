@@ -10,7 +10,7 @@ import subprocess
 import winreg
 import ctypes # 新增导入
 
-def set_windows_proxy(ip_address, port, enable=True):
+def set_windows_proxy(ip_address, port=3067, enable=True):
     """设置或取消 Windows 系统代理。
     
     Args:
