@@ -10,7 +10,7 @@ import subprocess
 import winreg
 import ctypes # 新增导入
 
-def set_windows_proxy(ip_address, port=3067, enable=True):
+def set_windows_proxy(ip_address, port, enable=True):
     """设置或取消 Windows 系统代理。
     
     Args:
@@ -109,18 +109,22 @@ def main():
         choice = input("请选择操作: (1) 设置代理 (2) 取消代理 (q) 退出: ").strip().lower()
         if choice == '1':
             ip_address = input("请输入代理 IP 地址: ").strip()
-            port_str = input("请输入代理端口号: ").strip()
-            if not ip_address or not port_str:
-                print("IP 地址和端口号不能为空。")
+            port_str = input("请输入代理端口号(默认3067): ").strip()
+            if not ip_address:
+                print("IP 地址不能为空。")
                 continue
-            try:
-                port = int(port_str) # 确保端口是整数
-                if not (0 < port < 65536):
-                    print("端口号必须是 1 到 65535 之间的数字。")
+            if not port_str:
+                port = 3067
+                print("未输入端口号，已使用默认端口号3067。")
+            else:
+                try:
+                    port = int(port_str) # 确保端口是整数
+                    if not (0 < port < 65536):
+                        print("端口号必须是 1 到 65535 之间的数字。")
+                        continue
+                except ValueError:
+                    print("端口号必须是数字。")
                     continue
-            except ValueError:
-                print("端口号必须是数字。")
-                continue
 
             set_windows_proxy(ip_address, str(port), enable=True)
             set_git_proxy(ip_address, str(port), enable=True)
