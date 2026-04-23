@@ -2,6 +2,54 @@ import subprocess
 import winreg
 import ctypes
 import shutil
+import re
+
+def get_wlan_default_gateway():
+    """获取 WLAN 无线网卡的默认网关地址。
+
+    Returns:
+        str: 默认网关地址，如果未找到则返回 None。
+    """
+    try:
+        # 使用 PowerShell 获取 WLAN 接口的默认网关
+        # Get-NetRoute 获取 IPv4 默认路由，筛选 InterfaceAlias 包含 WLAN 或 Wi-Fi 的项
+        ps_cmd = (
+            "Get-NetRoute -DestinationPrefix '0.0.0.0/0' -AddressFamily IPv4 | "
+            "Where-Object { $_.InterfaceAlias -match 'WLAN|Wi-Fi|无线' } | "
+            "Select-Object -First 1 -ExpandProperty NextHop"
+        )
+
+        result = subprocess.run(
+            ['powershell.exe', '-NoProfile', '-Command', ps_cmd],
+            capture_output=True,
+            text=True
+        )
+
+        gateway = result.stdout.strip()
+        if gateway and re.match(r'^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$', gateway):
+            return gateway
+
+        # 备选方案：使用 WMI 查询
+        ps_cmd_wmi = (
+            "Get-WmiObject Win32_NetworkAdapterConfiguration -Filter \"IPEnabled = True\" | "
+            "Where-Object { $_.Description -match 'Wireless|WiFi|WLAN|802.11' -or $_.SettingID -match 'WLAN' } | "
+            "ForEach-Object { $_.DefaultIPGateway } | Select-Object -First 1"
+        )
+
+        result = subprocess.run(
+            ['powershell.exe', '-NoProfile', '-Command', ps_cmd_wmi],
+            capture_output=True,
+            text=True
+        )
+
+        gateway = result.stdout.strip()
+        if gateway and re.match(r'^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$', gateway):
+            return gateway
+
+        return None
+    except Exception as e:
+        print(f"获取 WLAN 默认网关时出错: {e}")
+        return None
 
 def set_windows_proxy(ip_address, port, enable=True):
     """设置或取消 Windows 系统代理。
@@ -141,17 +189,26 @@ def main():
     while True:
         choice = input("请选择操作: (1) 设置代理 (2) 取消代理 (q) 退出: ").strip().lower()
         if choice == '1':
-            ip_address = input("请输入代理 IP 地址: ").strip()
-            port_str = input("请输入代理端口号(10808): ").strip()
-            if not ip_address:
-                ip_address = "192.168.20.190"
-                print(f"未输入代理 IP 地址，已使用默认值 {ip_address}。")
+            default_gateway = get_wlan_default_gateway()
+            default_ip = default_gateway if default_gateway else "192.168.20.190"
+            
+            if default_gateway:
+                print(f"检测到 WLAN 默认网关: {default_gateway}")
+            
+            ip_input = input(f"请输入代理 IP 地址 ({default_ip}): ").strip()
+            if ip_input:
+                ip_address = ip_input
+            else:
+                ip_address = default_ip
+                print(f"使用默认代理 IP 地址: {ip_address}")
+            
+            port_str = input("请输入代理端口号 (10808): ").strip()
             if not port_str:
                 port = 10808
-                print("未输入端口号，已使用默认端口号10808。")
+                print("未输入端口号，已使用默认端口号 10808。")
             else:
                 try:
-                    port = int(port_str) # 确保端口是整数
+                    port = int(port_str)
                     if not (0 < port < 65536):
                         print("端口号必须是 1 到 65535 之间的数字。")
                         continue
