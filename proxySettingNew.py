@@ -142,13 +142,13 @@ def main():
         choice = input("请选择操作: (1) 设置代理 (2) 取消代理 (q) 退出: ").strip().lower()
         if choice == '1':
             ip_address = input("请输入代理 IP 地址: ").strip()
-            port_str = input("请输入代理端口号(默认3067): ").strip()
+            port_str = input("请输入代理端口号(10808): ").strip()
             if not ip_address:
-                print("IP 地址不能为空。")
-                continue
+                ip_address = "192.168.20.190"
+                print(f"未输入代理 IP 地址，已使用默认值 {ip_address}。")
             if not port_str:
-                port = 3067
-                print("未输入端口号，已使用默认端口号3067。")
+                port = 10808
+                print("未输入端口号，已使用默认端口号10808。")
             else:
                 try:
                     port = int(port_str) # 确保端口是整数
