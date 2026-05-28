@@ -112,48 +112,52 @@ def get_wlan_default_gateway():
         print(f"获取 WLAN 默认网关时出错: {e}")
         return None
 
-def set_windows_proxy(ip_address, port, enable=True):
-    """设置或取消 Windows 系统代理。
-    
+def set_windows_proxy(ip_address, port, enable=True, auto_config_url=None):
+    """设置或取消 Windows 系统代理，包括自动检测和配置脚本设置。
+
     Args:
         ip_address (str): 代理服务器的 IP 地址。
         port (str): 代理服务器的端口号。
         enable (bool): True 表示设置代理，False 表示取消代理。
+        auto_config_url (str): 取消代理时恢复的自动配置脚本地址。
     """
     try:
-        # 打开注册表项
         internet_settings = winreg.OpenKey(winreg.HKEY_CURRENT_USER,
                                            r'Software\Microsoft\Windows\CurrentVersion\Internet Settings',
                                            0, winreg.KEY_WRITE)
 
         if enable:
-            # 启用代理并设置代理服务器地址和端口
             winreg.SetValueEx(internet_settings, 'ProxyEnable', 0, winreg.REG_DWORD, 1)
             winreg.SetValueEx(internet_settings, 'ProxyServer', 0, winreg.REG_SZ, f"{ip_address}:{port}")
+            winreg.SetValueEx(internet_settings, 'AutoDetect', 0, winreg.REG_DWORD, 0)
+            try:
+                winreg.DeleteValue(internet_settings, 'AutoConfigURL')
+            except FileNotFoundError:
+                pass  # AutoConfigURL 不存在，无需删除
             print(f"Windows 代理已设置为: {ip_address}:{port}")
+            print("已关闭「自动检测设置」和「使用设置脚本」")
         else:
-            # 禁用代理
             winreg.SetValueEx(internet_settings, 'ProxyEnable', 0, winreg.REG_DWORD, 0)
-            # 清除代理服务器设置
-            winreg.SetValueEx(internet_settings, 'ProxyServer', 0, winreg.REG_SZ, "") 
-            print("Windows 代理已禁用。")
+            winreg.SetValueEx(internet_settings, 'ProxyServer', 0, winreg.REG_SZ, "")
+            winreg.SetValueEx(internet_settings, 'AutoDetect', 0, winreg.REG_DWORD, 1)
+            if auto_config_url:
+                winreg.SetValueEx(internet_settings, 'AutoConfigURL', 0, winreg.REG_SZ, auto_config_url)
+                print(f"已恢复「使用设置脚本」: {auto_config_url}")
+            print("Windows 代理已禁用，已开启「自动检测设置」")
 
-        # 关闭注册表项
         winreg.CloseKey(internet_settings)
 
-        # 通知系统设置已更改
         INTERNET_OPTION_SETTINGS_CHANGED = 39
         INTERNET_OPTION_REFRESH = 37
-        
         try:
             internet_set_option = ctypes.windll.Wininet.InternetSetOptionW
             internet_set_option(0, INTERNET_OPTION_SETTINGS_CHANGED, 0, 0)
             internet_set_option(0, INTERNET_OPTION_REFRESH, 0, 0)
-            print("已通知系统代理设置更改。请注意，某些应用程序可能需要重启才能应用新的代理设置。")
+            print("已通知系统代理设置更改。")
         except AttributeError:
-            print("警告: 无法加载 Wininet.dll 中的 InternetSetOptionW。系统可能未自动刷新代理设置。")
+            print("警告: 无法加载 Wininet.dll 中的 InternetSetOptionW。")
         except Exception as e_ctypes:
-            print(f"通知系统代理设置更改时发生错误: {e_ctypes}。可能需要管理员权限或手动刷新。")
+            print(f"通知系统代理设置更改时发生错误: {e_ctypes}")
 
     except FileNotFoundError:
         print("错误：找不到注册表路径。请确保您在 Windows 系统上运行此脚本。")
