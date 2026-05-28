@@ -3,6 +3,7 @@ import winreg
 import ctypes
 import shutil
 import re
+import os
 
 def get_wlan_default_gateway():
     """获取 WLAN 无线网卡的默认网关地址。
@@ -184,6 +185,56 @@ def set_npm_proxy(ip_address, port, enable=True):
     except Exception as e:
         print(f"设置/取消 npm 代理时发生未知错误: {e}")
 
+def set_codex_proxy(ip_address, port, enable=True):
+    """设置或取消 ~/.codex/.env 文件中的代理环境变量。
+
+    Args:
+        ip_address (str): 代理服务器的 IP 地址。
+        port (str): 代理服务器的端口号。
+        enable (bool): True 表示设置代理，False 表示取消代理。
+    """
+    codex_env_path = os.path.expanduser("~/.codex/.env")
+    codex_dir = os.path.dirname(codex_env_path)
+
+    os.makedirs(codex_dir, exist_ok=True)
+
+    proxy_keys = ['https_proxy=', 'http_proxy=', 'all_proxy=']
+
+    if enable:
+        existing_lines = []
+        if os.path.exists(codex_env_path):
+            with open(codex_env_path, 'r', encoding='utf-8') as f:
+                existing_lines = f.readlines()
+
+        filtered_lines = [line for line in existing_lines
+                         if not any(line.strip().startswith(key) for key in proxy_keys)]
+
+        proxy_lines = [
+            f"https_proxy=http://{ip_address}:{port}\n",
+            f"http_proxy=http://{ip_address}:{port}\n",
+            f"all_proxy=socks5://{ip_address}:{port}\n",
+        ]
+        filtered_lines.extend(proxy_lines)
+
+        with open(codex_env_path, 'w', encoding='utf-8') as f:
+            f.writelines(filtered_lines)
+
+        print(f"Codex .env 代理已设置为: {codex_env_path}")
+    else:
+        if os.path.exists(codex_env_path):
+            with open(codex_env_path, 'r', encoding='utf-8') as f:
+                existing_lines = f.readlines()
+
+            filtered_lines = [line for line in existing_lines
+                             if not any(line.strip().startswith(key) for key in proxy_keys)]
+
+            with open(codex_env_path, 'w', encoding='utf-8') as f:
+                f.writelines(filtered_lines)
+
+            print(f"Codex .env 代理已取消: {codex_env_path}")
+        else:
+            print(f"Codex .env 文件不存在，无需取消: {codex_env_path}")
+
 def main():
     """主函数，处理用户输入并调用相应功能。"""
     while True:
@@ -219,12 +270,14 @@ def main():
             set_windows_proxy(ip_address, str(port), enable=True)
             set_git_proxy(ip_address, str(port), enable=True)
             set_npm_proxy(ip_address, str(port), enable=True)
+            set_codex_proxy(ip_address, str(port), enable=True)
             print("\n代理设置完成。")
             break
         elif choice == '2':
             set_windows_proxy("", "", enable=False) # IP 和端口在禁用时未使用
             set_git_proxy("", "", enable=False)   # IP 和端口在禁用时未使用
             set_npm_proxy("", "", enable=False)   # IP 和端口在禁用时未使用
+            set_codex_proxy("", "", enable=False) # IP 和端口在禁用时未使用
             print("\n代理已取消。")
             break
         elif choice == 'q':
