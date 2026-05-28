@@ -33,6 +33,38 @@ def load_config():
                     config[key.strip()] = value.strip()
     return config
 
+def connect_wifi(ssid):
+    """连接指定的 WiFi 网络。
+
+    Args:
+        ssid (str): WiFi SSID 名称。
+
+    Returns:
+        bool: 连接成功返回 True，失败返回 False。
+    """
+    print(f"正在连接 WiFi: {ssid} ...")
+    result = subprocess.run(
+        ['netsh', 'wlan', 'connect', f'name={ssid}'],
+        capture_output=True, text=True
+    )
+    if result.returncode != 0:
+        print(f"WiFi 连接命令失败: {result.stderr.strip()}")
+        return False
+
+    # 轮询等待连接成功
+    for i in range(15):
+        time.sleep(1)
+        status = subprocess.run(
+            ['netsh', 'wlan', 'show', 'interfaces'],
+            capture_output=True, text=True
+        )
+        if ssid in status.stdout:
+            print(f"已连接到 WiFi: {ssid}")
+            return True
+
+    print(f"WiFi 连接超时（15秒），未能连接到: {ssid}")
+    return False
+
 def get_wlan_default_gateway():
     """获取 WLAN 无线网卡的默认网关地址。
 
