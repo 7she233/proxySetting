@@ -4,6 +4,34 @@ import ctypes
 import shutil
 import re
 import os
+import time
+
+# 默认配置值
+DEFAULTS = {
+    'EXTERNAL_WIFI_SSID': 'spp',
+    'INTERNAL_WIFI_SSID': 'SUNING-Office',
+    'PROXY_PORT': '10808',
+    'AUTO_CONFIG_URL': 'http://it.cnsuning.com/zongbu.pac',
+}
+
+def load_config():
+    """从 config.env 读取配置，文件不存在时使用默认值。
+
+    Returns:
+        dict: 配置字典。
+    """
+    config = dict(DEFAULTS)
+    config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.env')
+    if os.path.exists(config_path):
+        with open(config_path, 'r', encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith('#'):
+                    continue
+                if '=' in line:
+                    key, value = line.split('=', 1)
+                    config[key.strip()] = value.strip()
+    return config
 
 def get_wlan_default_gateway():
     """获取 WLAN 无线网卡的默认网关地址。
