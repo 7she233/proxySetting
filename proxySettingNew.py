@@ -300,50 +300,57 @@ def set_codex_proxy(ip_address, port, enable=True):
             print(f"Codex .env 文件不存在，无需取消: {codex_env_path}")
 
 def main():
-    """主函数，处理用户输入并调用相应功能。"""
-    while True:
-        choice = input("请选择操作: (1) 设置代理 (2) 取消代理 (q) 退出: ").strip().lower()
-        if choice == '1':
-            default_gateway = get_wlan_default_gateway()
-            default_ip = default_gateway if default_gateway else "192.168.20.190"
-            
-            if default_gateway:
-                print(f"检测到 WLAN 默认网关: {default_gateway}")
-            
-            ip_input = input(f"请输入代理 IP 地址 ({default_ip}): ").strip()
-            if ip_input:
-                ip_address = ip_input
-            else:
-                ip_address = default_ip
-                print(f"使用默认代理 IP 地址: {ip_address}")
-            
-            port_str = input("请输入代理端口号 (10808): ").strip()
-            if not port_str:
-                port = 10808
-                print("未输入端口号，已使用默认端口号 10808。")
-            else:
-                try:
-                    port = int(port_str)
-                    if not (0 < port < 65536):
-                        print("端口号必须是 1 到 65535 之间的数字。")
-                        continue
-                except ValueError:
-                    print("端口号必须是数字。")
-                    continue
+    """主函数，一键切换外网/内网络。"""
+    config = load_config()
+    external_ssid = config['EXTERNAL_WIFI_SSID']
+    internal_ssid = config['INTERNAL_WIFI_SSID']
+    proxy_port = config['PROXY_PORT']
+    auto_config_url = config['AUTO_CONFIG_URL']
 
-            set_windows_proxy(ip_address, str(port), enable=True)
-            set_git_proxy(ip_address, str(port), enable=True)
-            set_npm_proxy(ip_address, str(port), enable=True)
-            set_codex_proxy(ip_address, str(port), enable=True)
-            print("\n代理设置完成。")
+    while True:
+        print(f"\n请选择操作:")
+        print(f"  (1) 切到外网 (手机热点 {external_ssid})")
+        print(f"  (2) 切到内网 (公司 {internal_ssid})")
+        print(f"  (q) 退出")
+        choice = input("请输入选择: ").strip().lower()
+
+        if choice == '1':
+            # 切到外网
+            if not connect_wifi(external_ssid):
+                print("WiFi 连接失败，操作中止。")
+                continue
+
+            default_gateway = get_wlan_default_gateway()
+            if default_gateway:
+                print(f"检测到网关 IP: {default_gateway}")
+                ip_address = default_gateway
+            else:
+                ip_input = input("无法自动检测网关 IP，请手动输入代理 IP 地址: ").strip()
+                if not ip_input:
+                    print("未输入 IP，操作中止。")
+                    continue
+                ip_address = ip_input
+
+            set_windows_proxy(ip_address, proxy_port, enable=True)
+            set_git_proxy(ip_address, proxy_port, enable=True)
+            set_npm_proxy(ip_address, proxy_port, enable=True)
+            set_codex_proxy(ip_address, proxy_port, enable=True)
+            print(f"\n已切换到外网，代理已设置为 {ip_address}:{proxy_port}")
             break
+
         elif choice == '2':
-            set_windows_proxy("", "", enable=False) # IP 和端口在禁用时未使用
-            set_git_proxy("", "", enable=False)   # IP 和端口在禁用时未使用
-            set_npm_proxy("", "", enable=False)   # IP 和端口在禁用时未使用
-            set_codex_proxy("", "", enable=False) # IP 和端口在禁用时未使用
-            print("\n代理已取消。")
+            # 切到内网
+            if not connect_wifi(internal_ssid):
+                print("WiFi 连接失败，操作中止。")
+                continue
+
+            set_windows_proxy("", "", enable=False, auto_config_url=auto_config_url)
+            set_git_proxy("", "", enable=False)
+            set_npm_proxy("", "", enable=False)
+            set_codex_proxy("", "", enable=False)
+            print(f"\n已切换到内网，代理已取消。")
             break
+
         elif choice == 'q':
             print("退出脚本。")
             break
